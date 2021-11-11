@@ -1,13 +1,9 @@
 package org.example.api.pet;
 
-import io.restassured.RestAssured;
-import io.restassured.builder.RequestSpecBuilder;
-import io.restassured.filter.log.LogDetail;
-import io.restassured.filter.log.ResponseLoggingFilter;
-import io.restassured.http.ContentType;
+
+import org.example.api.BaseTest;
 import org.example.model.Pet;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -16,39 +12,10 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 
-public class PetApiTest {
-    @BeforeClass
-    public void prepare() throws IOException {
+public class PetApiTest extends BaseTest {
 
-        // Читаем конфигурационный файл в System.properties -- простейшее HashMap хранилище
-        System.getProperties().load(ClassLoader.getSystemResourceAsStream("my.properties"));
-
-        // Здесь мы задаём глобальные преднастройки для каждого запроса. Аналогично можно задавать их
-        // перед каждым запросом отдельно, либо создать поле RequestSpecification и задавать весь пакет настроек
-        // в конкретных запросах. Подробнее тут: https://habr.com/ru/post/421005/
-        RestAssured.requestSpecification = new RequestSpecBuilder()
-                .setBaseUri("https://petstore.swagger.io/v2/") // задаём базовый адрес каждого ресурса
-                .addHeader("api_key", System.getProperty("api.key")) // задаём заголовок с токеном для авторизации
-                // обязательно учитывайте, что любые приватные данные необходимо хранить в отдельных файлах, которые НЕ публикуютя
-                // в открытых репозиториях (в закрытых тоже лучше не публиковать)
-                .setAccept(ContentType.JSON) // задаём заголовок accept
-                .setContentType(ContentType.JSON) // задаём заголовок content-type
-                .log(LogDetail.ALL) // дополнительная инструкция полного логгирования для RestAssured
-                .build(); // после этой команды происходит формирование стандартной "шапки" запроса.
-        // Подробнее о билдерах можно почитать https://refactoring.guru/ru/design-patterns/builder
-        // но интереснее в книжке Effective Java
-
-        //Здесь задаётся фильтр, позволяющий выводить содержание ответа,
-        // также к нему можно задать условия в параметрах конструктора, которм должен удовлетворять ответ (например код ответа)
-        RestAssured.filters(new ResponseLoggingFilter());
-    }
-
-    /**
-     * Простейшая проверка: создаём объект, сохраняем на сервере и проверяем, что при запросе возвращается
-     * "тот же" объект
-     */
     @Test
-    public void checkObjectSave() {
+    public void checkObjectSave() throws InterruptedException {
         Pet pet = new Pet(); // создаём экземпляр POJO объекта Pet
         int id = new Random().nextInt(500000); // просто нужно создать произвольный айди
         String name = "Pet_" + UUID.randomUUID().toString(); // UUID гарантирует уникальность строки
@@ -57,14 +24,14 @@ public class PetApiTest {
 
         given()  // часть стандартного синтаксиса BDD. Означает предварительные данные. Иначе говоря ДАНО:
                 .body(pet) // указываем что  помещаем в тело запроса. Поскольку у нас подключен Gson, он преобразуется в JSON
-            .when()   // КОГДА:
+                .when()   // КОГДА:
                 .post("/pet") // выполняем запрос методом POST к ресурсу /pet, при этом используется ранее
                 // созданная "шапка". Именно в этом методе создаётся "текстовый файл" запроса, он отправляется
                 // посредством HTTP к серверу. Затем в этом же методе получается ответ. После этого метода мы
                 // работаем с ОТВЕТОМ
-            .then() // ТОГДА: (указывает, что после этой части будут выполняться проверки-утверждения)
+                .then() // ТОГДА: (указывает, что после этой части будут выполняться проверки-утверждения)
                 .statusCode(200); // например проверка кода ответа.он просто выдёргивается из текста ответа
-
+        Thread.sleep(10000);
         /*
          * Подобный стиль написания кода называется fluent -- текучим. Мы последовательно вызываем методы, при этом
          * объект у которого вызываются методы может меняться по ходу вызовов. метод возвращает какой-то объект,
@@ -75,18 +42,19 @@ public class PetApiTest {
          * помогает понять какой объект возвращается после метода... а остальное дело привычки
          * */
 
+
         Pet actual =
                 given()
                         .pathParam("petId", id) // заранее задаём переменную petId
-                    .when()
+                        .when()
                         .get("/pet/{petId}") // которая подставится в путь ресурса перед выполнением запроса.
                         // после этого метода мы так же будем иметь уже ОТВЕТ от сервера.
-                    .then()
+                        .then()
                         .statusCode(200)
                         .extract().body() // у полученного ответа мы можем взять тело
                         .as(Pet.class); // и распарсить его как объект Pet. Всё это получается автоматически, так как
-                        // у нас подключена библиотека для работы с JSON и мы дополнительно указали в общей "шапке"
-                        // что хотим получать и отправлять объекты в формате JSON
+        // у нас подключена библиотека для работы с JSON и мы дополнительно указали в общей "шапке"
+        // что хотим получать и отправлять объекты в формате JSON
         // Здесь сравниваем только имя, поскольку многие поля у наших объектов не совпадают: поскольку
         // мы не задали список тэгов животного, в объекте pet он будет null, тогда как в объекте actual Gson присвоит
         // ему пустой список. Это происходит потому что в ответ всегда приходит полный JSON модели
@@ -102,15 +70,16 @@ public class PetApiTest {
         System.getProperties().load(ClassLoader.getSystemResourceAsStream("my.properties"));
         given()
                 .pathParam("petId", System.getProperty("petId"))
-            .when()
+                .when()
                 .delete("/pet/{petId}")
-            .then()
+                .then()
                 .statusCode(200);
         given()
                 .pathParam("petId", System.getProperty("petId"))
-             .when()
+                .when()
                 .get("/pet/{petId}")
-             .then()
+                .then()
                 .statusCode(404);
     }
 }
+
