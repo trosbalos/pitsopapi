@@ -1,6 +1,8 @@
 package org.example.api.store;
 
 import org.example.api.BaseTest;
+import org.example.model.Order;
+import org.example.model.Inventory;
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.Test;
@@ -15,7 +17,7 @@ public class StoreApiTest extends BaseTest {
     Date current = new Date();
     Order order = new Order();
 
-    @Test
+    @Test(  priority = 1)
     public void placeOrderTest() throws InterruptedException {
 
         order.setId(System.getProperty("orderId"));
@@ -44,8 +46,20 @@ public class StoreApiTest extends BaseTest {
         System.setProperty("orderId", String.valueOf(order.getId()));
 
     }
+    @Test(  priority = 2)
+    public void inventoryTest(){
+        Inventory actual = given()
+                .when()
+                .get("/store/inventory")
+                .then()
+                .statusCode(200)
+                .extract().body()
+                .as(Inventory.class);
+        Assert.assertTrue(actual.getSold()!=null, "Inventory не содержит статус sold" );
 
-    @AfterTest
+    }
+
+    @Test (  priority = 3)
     public void deleteOrderTest() throws IOException, InterruptedException {
         System.getProperties().load(ClassLoader.getSystemResourceAsStream("my.properties"));
         given()
